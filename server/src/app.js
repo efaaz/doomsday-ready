@@ -1,5 +1,6 @@
 import express from "express";
 import cors from "cors";
+import errorHandler from "./middleware/errorHandler.js";
 
 const app = express();
 
@@ -10,11 +11,11 @@ app.use(cors({
 
 app.use(express.json());
 
-// Health check
-app.get("/api/health", (req, res) => {
+// check server health
+app.get("/", (req, res) => {
   res.status(200).json({
     success: true,
-    message: "Doomsday Ready API is running"
+    message: "Doomsday API is running"
   });
 });
 
@@ -24,5 +25,8 @@ app.use((req, res, next) => {
   error.statusCode = 404;
   next(error);
 });
+
+// Error handling middleware
+app.use(errorHandler);
 
 export default app;
