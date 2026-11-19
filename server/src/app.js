@@ -1,3 +1,4 @@
+import connectDB from "./config/db.js";
 import express from "express";
 import cors from "cors";
 import errorHandler from "./middleware/errorHandler.js";
@@ -12,7 +13,14 @@ app.use(cors({
 }));
 
 app.use(express.json());
-
+app.use(async (req, res, next) => {
+  try {
+    await connectDB();
+    next();
+  } catch (error) {
+    next(error);
+  }
+});
 // Routes
 app.use("/api/movies", movieRoutes);
 app.use("/api/cinemas", cinemaRoutes);
