@@ -1,6 +1,7 @@
 import express from "express";
 import cors from "cors";
 import errorHandler from "./middleware/errorHandler.js";
+import movieRoutes from "./routes/movie.routes.js";
 
 const app = express();
 
@@ -10,6 +11,12 @@ app.use(cors({
 }));
 
 app.use(express.json());
+
+// Routes
+app.use("/api/movies", movieRoutes);
+
+
+
 
 // check server health
 app.get("/", (req, res) => {
