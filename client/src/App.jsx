@@ -1,13 +1,21 @@
 import { useState } from "react";
-import heroImg from "./assets/hero.png";
-import reactLogo from "./assets/react.svg";
-import viteLogo from "./assets/vite.svg";
-import "./App.css";
+import Navbar from "./components/Navbar";
+import MoviesPage from "./pages/MoviePage";
+import RewatchPlanPage from "./pages/RewatchPlanPage";
+import { ToastProvider } from "./components/ToastProvider";
 
 function App() {
-  const [count, setCount] = useState(0);
+  const [activeView, setActiveView] = useState("movies");
 
-  return <></>;
+  return (
+    <ToastProvider>
+      <Navbar activeView={activeView} onViewChange={setActiveView} />
+      <main className="app-container">
+        {activeView === "movies" && <MoviesPage />}
+        {activeView === "rewatch" && <RewatchPlanPage />}
+      </main>
+    </ToastProvider>
+  );
 }
 
 export default App;
