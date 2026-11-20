@@ -1,73 +1,45 @@
-import { useEffect, useMemo, useState } from "react";
-import { getBookingQuote, getCinemas } from "../api/cinemas.api";
+import { useMemo, useState } from "react";
 import Loading from "../components/Loading";
-import { useToast } from "../hooks/useToast";
+import useCinemas from "../hooks/useCinemas";
 import { bookingQuoteSchema } from "../schemas/booking.schema";
 
 function BookingPage({ onViewChange }) {
-  const toast = useToast();
-  const [cinemas, setCinemas] = useState([]);
-  const [isLoadingCinemas, setIsLoadingCinemas] = useState(true);
+  const {
+    cinemas,
+    isLoadingCinemas,
+    isLoadingQuote,
+    quote,
+    getBookingQuote,
+    clearBookingQuote,
+  } = useCinemas();
   const [cinemaId, setCinemaId] = useState("");
   const [groupSize, setGroupSize] = useState("");
   const [fieldErrors, setFieldErrors] = useState({});
-  const [isLoadingQuote, setIsLoadingQuote] = useState(false);
-  const [quote, setQuote] = useState(null);
 
   const selectedCinema = useMemo(
-    () => cinemas.find((cinema) => String(cinema._id ?? cinema.id) === cinemaId),
+    () =>
+      cinemas.find((cinema) => String(cinema._id ?? cinema.id) === cinemaId),
     [cinemas, cinemaId],
   );
 
-  useEffect(() => {
-    let isActive = true;
-
-    getCinemas()
-      .then((response) => {
-        if (!isActive) return;
-        const list = Array.isArray(response?.data)
-          ? response.data
-          : Array.isArray(response)
-            ? response
-            : [];
-        setCinemas(list);
-      })
-      .catch((error) => {
-        if (!isActive) return;
-        toast.error(error, {
-          title: "Unable to load cinemas",
-          message: "The available cinemas could not be loaded. Please try again.",
-        });
-      })
-      .finally(() => {
-        if (isActive) setIsLoadingCinemas(false);
-      });
-
-    return () => {
-      isActive = false;
-    };
-  }, [toast]);
-
   function handleCinemaChange(event) {
     setCinemaId(event.target.value);
-    setQuote(null);
+    clearBookingQuote();
     setFieldErrors((current) => {
       const next = { ...current };
       delete next.cinemaId;
       return next;
     });
-    toast.clear();
   }
 
   function handleGroupSizeChange(event) {
     setGroupSize(event.target.value);
-    setQuote(null);
+    clearBookingQuote();
     setFieldErrors((current) => {
       const next = { ...current };
       delete next.groupSize;
       return next;
     });
-    toast.clear();
   }
 
   async function handleSubmit(event) {
@@ -88,24 +60,7 @@ function BookingPage({ onViewChange }) {
     }
 
     setFieldErrors({});
-    setQuote(null);
-    setIsLoadingQuote(true);
-    toast.clear();
-
-    try {
-      const response = await getBookingQuote(
-        result.data.cinemaId,
-        result.data.groupSize,
-      );
-      setQuote(response?.data ?? response);
-    } catch (error) {
-      toast.error(error, {
-        title: "Unable to calculate a booking quote",
-        message: "The seat combination could not be calculated. Please try again.",
-      });
-    } finally {
-      setIsLoadingQuote(false);
-    }
+    await getBookingQuote(result.data.cinemaId, result.data.groupSize);
   }
 
   const availableBundleSizes = selectedCinema?.bundleSizes ?? [];
@@ -131,7 +86,10 @@ function BookingPage({ onViewChange }) {
       </header>
 
       <div className="booking-layout">
-        <section className="booking-form-panel" aria-labelledby="booking-form-title">
+        <section
+          className="booking-form-panel"
+          aria-labelledby="booking-form-title"
+        >
           <div className="booking-panel-heading">
             <span className="booking-panel-step">01</span>
             <div>
@@ -165,6 +123,7 @@ function BookingPage({ onViewChange }) {
                   id="booking-cinema"
                   className="movie-input"
                   value={cinemaId}
+                  disabled={isLoadingQuote}
                   onChange={handleCinemaChange}
                   aria-invalid={Boolean(fieldErrors.cinemaId)}
                   aria-describedby={
@@ -203,6 +162,7 @@ function BookingPage({ onViewChange }) {
                   max="10000"
                   step="1"
                   value={groupSize}
+                  disabled={isLoadingQuote}
                   onChange={handleGroupSizeChange}
                   placeholder="For example, 6"
                   aria-invalid={Boolean(fieldErrors.groupSize)}
@@ -221,7 +181,10 @@ function BookingPage({ onViewChange }) {
                     {fieldErrors.groupSize}
                   </p>
                 ) : (
-                  <p className="booking-input-hint" id="booking-group-size-hint">
+                  <p
+                    className="booking-input-hint"
+                    id="booking-group-size-hint"
+                  >
                     Enter a whole number from 1 to 10,000.
                   </p>
                 )}
@@ -245,7 +208,9 @@ function BookingPage({ onViewChange }) {
                 className="movie-button movie-button-primary booking-submit"
                 disabled={isLoadingQuote}
               >
-                {isLoadingQuote ? "Calculating quote..." : "Find the best bundle mix"}
+                {isLoadingQuote
+                  ? "Calculating quote..."
+                  : "Find the best bundle mix"}
               </button>
             </form>
           )}
@@ -273,7 +238,9 @@ function BookingPage({ onViewChange }) {
             <div className="booking-quote-content">
               <div className="booking-result-heading">
                 <div>
-                  <span className="booking-result-kicker">EXACT SEAT MATCH</span>
+                  <span className="booking-result-kicker">
+                    EXACT SEAT MATCH
+                  </span>
                   <h2 id="booking-result-title">Your bundle quote</h2>
                   <p>
                     {quote.cinema?.name} · {quote.groupSize} people
@@ -300,7 +267,10 @@ function BookingPage({ onViewChange }) {
                       {bundle.size}
                       <small> seats</small>
                     </span>
-                    <span className="booking-bundle-multiplier" aria-hidden="true">
+                    <span
+                      className="booking-bundle-multiplier"
+                      aria-hidden="true"
+                    >
                       ×
                     </span>
                     <span className="booking-bundle-quantity">
@@ -336,8 +306,8 @@ function BookingPage({ onViewChange }) {
               <div className="booking-impossible-message">
                 <p>
                   {quote.groupSize} seats cannot be matched exactly using this
-                  cinema&apos;s bundle sizes ({availableBundleSizes.join(", ")}).
-                  Try a different group size or choose another cinema.
+                  cinema&apos;s bundle sizes ({availableBundleSizes.join(", ")}
+                  ). Try a different group size or choose another cinema.
                 </p>
               </div>
             </div>

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { createCinema } from "../api/cinemas.api";
+import useCinemas from "../hooks/useCinemas";
 import { useToast } from "../hooks/useToast";
 import { cinemaCreateSchema } from "../schemas/cinema.schema";
 
@@ -16,9 +16,14 @@ const initialErrors = {
 
 function CreateCinemaPage({ onViewChange }) {
   const toast = useToast();
+  const {
+    cinemas,
+    isLoadingCinemas,
+    isCreatingCinema,
+    createCinema,
+  } = useCinemas();
   const [form, setForm] = useState(initialForm);
   const [fieldErrors, setFieldErrors] = useState(initialErrors);
-  const [isCreating, setIsCreating] = useState(false);
   const [createdCinema, setCreatedCinema] = useState("");
 
   function handleNameChange(event) {
@@ -96,29 +101,13 @@ function CreateCinemaPage({ onViewChange }) {
 
     setFieldErrors(initialErrors);
     setCreatedCinema("");
-    setIsCreating(true);
     toast.clear();
 
-    try {
-      const response = await createCinema(result.data);
-      const cinema = response?.data ?? response;
-      setForm(initialForm);
-      setCreatedCinema(cinema.name ?? result.data.name);
-      toast.success("Cinema created successfully.");
-    } catch (error) {
-      toast.error(error, {
-        title:
-          error.code === "DUPLICATE_VALUE"
-            ? "Cinema name already exists"
-            : "Unable to create cinema",
-        message:
-          error.code === "DUPLICATE_VALUE"
-            ? "A cinema with this name already exists. Choose a different name."
-            : "The cinema could not be saved. Review the details and try again.",
-      });
-    } finally {
-      setIsCreating(false);
-    }
+    const cinema = await createCinema(result.data);
+    if (!cinema) return;
+
+    setForm(initialForm);
+    setCreatedCinema(cinema.name ?? result.data.name);
   }
 
   return (
@@ -160,7 +149,7 @@ function CreateCinemaPage({ onViewChange }) {
                 value={form.name}
                 onChange={handleNameChange}
                 placeholder="For example, Central Cinema"
-                disabled={isCreating}
+                disabled={isCreatingCinema}
                 aria-invalid={Boolean(fieldErrors.name)}
                 aria-describedby={fieldErrors.name ? "cinema-name-error" : undefined}
               />
@@ -202,7 +191,7 @@ function CreateCinemaPage({ onViewChange }) {
                       handleBundleSizeChange(index, event.target.value)
                     }
                     placeholder="e.g. 4"
-                    disabled={isCreating}
+                    disabled={isCreatingCinema}
                     aria-invalid={Boolean(fieldErrors.bundleSizes[index])}
                     aria-describedby={
                       fieldErrors.bundleSizes[index]
@@ -215,7 +204,7 @@ function CreateCinemaPage({ onViewChange }) {
                     type="button"
                     className="create-cinema-remove-button"
                     onClick={() => removeBundleSize(index)}
-                    disabled={isCreating || form.bundleSizes.length === 1}
+                    disabled={isCreatingCinema || form.bundleSizes.length === 1}
                     aria-label={`Remove bundle ${index + 1}`}
                   >
                     Remove
@@ -243,7 +232,7 @@ function CreateCinemaPage({ onViewChange }) {
               type="button"
               className="movie-button movie-button-secondary create-cinema-add-button"
               onClick={addBundleSize}
-              disabled={isCreating || form.bundleSizes.length >= 10}
+              disabled={isCreatingCinema || form.bundleSizes.length >= 10}
             >
               + Add another bundle size
             </button>
@@ -255,9 +244,9 @@ function CreateCinemaPage({ onViewChange }) {
             <button
               type="submit"
               className="movie-button movie-button-primary create-cinema-submit"
-              disabled={isCreating}
+              disabled={isCreatingCinema}
             >
-              {isCreating ? "Creating cinema..." : "Create cinema"}
+              {isCreatingCinema ? "Creating cinema..." : "Create cinema"}
             </button>
           </form>
         </section>
@@ -275,6 +264,24 @@ function CreateCinemaPage({ onViewChange }) {
           <p>
             The booking page finds the exact combination with the fewest bundles.
           </p>
+
+          <div className="create-cinema-existing">
+            <div className="create-cinema-existing-heading">
+              <h3>Configured cinemas</h3>
+              <span>{cinemas.length}</span>
+            </div>
+            {isLoadingCinemas ? (
+              <p>Loading cinemas...</p>
+            ) : cinemas.length > 0 ? (
+              <ul>
+                {cinemas.map((cinema) => (
+                  <li key={String(cinema._id ?? cinema.id)}>{cinema.name}</li>
+                ))}
+              </ul>
+            ) : (
+              <p>No cinemas have been added yet.</p>
+            )}
+          </div>
         </aside>
       </div>
 
