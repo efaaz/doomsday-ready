@@ -19,15 +19,29 @@ function getErrorDetails(error, fallback = {}) {
     };
   }
 
-  if (
-    error?.code === "DUPLICATE_MOVIE_TITLE" ||
-    error?.code === "DUPLICATE_VALUE"
-  ) {
+  if (error?.code === "DUPLICATE_MOVIE_TITLE") {
     return {
       title: "Movie already exists",
       message:
         error.message ||
         "A movie with this title already exists. Choose a different title.",
+    };
+  }
+
+  if (error?.code === "DUPLICATE_CINEMA_NAME") {
+    return {
+      title: "Cinema name already exists",
+      message:
+        error.message ||
+        "A cinema with this name already exists. Choose a different name.",
+    };
+  }
+
+  if (error?.code === "DUPLICATE_VALUE") {
+    return {
+      title: fallback.title || "This value is already in use",
+      message:
+        fallback.message || error.message || "Choose a different value and try again.",
     };
   }
 

@@ -2,6 +2,7 @@ const navigationItems = [
   { id: "movies", label: "Movies" },
   { id: "rewatch", label: "Rewatch Plan" },
   { id: "booking", label: "Booking" },
+  { id: "createCinema", label: "Add Cinema" },
 ];
 
 function Navbar({ activeView, onViewChange }) {
