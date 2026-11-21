@@ -1,11 +1,56 @@
 # Doomsday Ready
 
-I built Doomsday Ready to help MCU fans prepare for *Avengers: Doomsday*. It lets me record movies and their prerequisites, generate a prerequisite-first rewatch plan, track watched movies, and calculate the smallest exact set of cinema seat bundles for a watch party.
+I built Doomsday Ready as part of the Blinto Talent Accelerator full stack developer internship assessment. It helps MCU fans prepare for *Avengers: Doomsday* by letting me record movies and their prerequisites, generate a prerequisite-first rewatch plan, track watched movies, and calculate the smallest exact set of cinema seat bundles for a watch party.
+
+## Installation and setup
+
+You can run the project with Docker Compose or install the client and server with npm.
+
+### Option 1: Docker Compose
+
+I added a Dockerfile for each app: both use Node.js 22 Alpine images, install locked dependencies with `npm ci`, and copy in their application files. In [compose.yaml](./compose.yaml), I defined the MongoDB, seed, API, and frontend services. Compose waits for MongoDB's health check before seeding and starting the API, and the MongoDB data is kept in a named volume. The seed service inserts the sample movies when the database is empty.
+
+I have not used Docker in my other projects yet, but I know Docker fundamentals and learned them through YouTube. For this project, I asked GPT to guide me through implementing Docker Compose and explain how the containers, service dependencies, health check, and persistent volume work. I used that guidance while setting up the project.
+
+Requirements: Docker Desktop (or Docker Engine) with Docker Compose available.
+
+```bash
+docker compose up --build
+```
+
+When the services are running, Y can open the frontend at `http://localhost:5173` and the API at `http://localhost:5000`.
+
+### Option 2: Run with npm
+
+You need Node.js, npm, and a running MongoDB instance. I configure `server/.env` with the database URI and optional server settings:
+
+```env
+MONGODB_URI=mongodb://localhost:27017/doomsday_ready
+PORT=5000
+CLIENT_URL=http://localhost:5173
+```
+
+Then I install and start the API in one terminal:
+
+```bash
+cd server
+npm install
+npm run dev
+```
+
+In another terminal, I set `VITE_API_BASE_URL=http://localhost:5000/api` in `client/.env`, then install and start the frontend:
+
+```bash
+cd client
+npm install
+npm run dev
+```
 
 ## Project links
 
 - **Source repository:** [github.com/efaaz/doomsday-ready](https://github.com/efaaz/doomsday-ready)
-- **Live application:**`https://doomsday-server-nine.vercel.app`.
+- **Live application:** [doomsday-ready-drab.vercel.app](https://doomsday-ready-drab.vercel.app)
+
 ## Features
 
 - **Movies:** Create movies, choose their prerequisites, search and filter the collection, and update watched status or prerequisites.
@@ -15,11 +60,11 @@ I built Doomsday Ready to help MCU fans prepare for *Avengers: Doomsday*. It let
 
 The booking feature returns a quote; it does not create or store a seat reservation.
 
-## Stack
+## Technology stack
 
 - **Frontend:** React, Vite, JavaScript, Zod, and Tailwind
 - **Backend:** Node.js with Express, Mongoose, and MongoDB.
-- **Backend algorithms:** Custom JavaScript graph construction and DFS for rewatch plans, plus custom unbound coin change algorithm using dynamic programming for booking quotes to give optimal bundles.
+- **Backend algorithms:** Custom JavaScript graph construction and DFS for rewatch plans, plus a custom unbounded coin change algorithm using dynamic programming to find optimal booking bundles.
 
 ## Architecture
 
@@ -86,7 +131,7 @@ erDiagram
 
 I implemented the graph logic myself in `server/src/services/graph.service.js`; I do not use a graph library. The service builds an adjacency graph with a JavaScript `Map`, where each movie ID maps to the IDs of the movies that must be watched first. A second map provides quick access from an ID to the full movie data.
 
-For a requested target, I used depth-first search (DFS) through its prerequisites beacuse in the instruction docs i noticed that the line `Given a target movie, return every movie you need to see before it (its prerequisites, their prerequisites, and so on), each exactly once, in an order where every movie comes after its prerequisites.` so I thinked it more like backtraking type where after visiting all nodes when backtrack it should give the prequisits in that order so recurisve DFS fits this dependency structure because it follows a prerequisite chain all the way down before returning. I add a movie to the result when its search finishes, which is a post-order traversal: its prerequisites are therefore already in the list. A `visited` set ensures a movie shared by multiple dependency paths appears only once. I leave the target itself out of the returned list.
+I chose depth-first search (DFS) after focusing on the requirement that every prerequisite must appear before the movie that depends on it. I thought of this as a backtracking problem: visit prerequisites recursively, then add each movie to the result as the search unwinds. This post-order traversal naturally gives me a prerequisite-first order. A `visited` set ensures a movie shared by multiple dependency paths appears only once, and I leave the target itself out of the returned list.
 
 I also track the current recursion path in `pathVisited`. If DFS reaches a movie already on that path, the dependencies contain a cycle. I validate the complete candidate graph before saving a movie create or update, so a change that creates a circular dependency is rejected with HTTP `409` and code `CIRCULAR_DEPENDENCY`. The rewatch-plan service then counts watched prerequisites and sums the runtime of the unwatched ones.
 
@@ -111,7 +156,7 @@ For example, bundle sizes `[2, 5]` and a group of `11` produce four bundles: one
 
 I used AI to help design the frontend and build React components. I first had API requests and their state in the page components, then instructed AI to organize the repeated movie and cinema fetching work into the two custom hooks. Those hooks expose the fetched data, loading and saving indicators, and action functions for pages to destructure and use. I keep form-specific state, such as field values, filters, and the selected view, in `useState` where it is used. This split reduces the amount of request and mutation logic in each page and makes the components easier to read. `useToast` shares notifications through a provider. I used Zod schemas for client-side form validation, while the server validates requests again before applying business logic.
 
-The brief describes the Movies, Rewatch Plan, and Booking views. I added a separate Add Cinema page because creating cinemas and configuring their seat bundles is an administrator/setup task, while a regular customer uses those configured cinemas to request a booking quote. The interface therefore has four views: Movies, Rewatch Plan, Booking, and Add Cinema. The movie view includes search and watched-status filters; the rewatch view refreshes progress after a watched toggle; the booking view shows either a bundle breakdown or why an exact match is unavailable. I kept the graph and optimization algorithms in the backend service code.
+The brief describes the Movies, Rewatch Plan, and Booking views. I added a separate Add Cinema page because creating cinemas and configuring their seat bundles is an administrator/setup task, while a regular customer uses those configured cinemas to request a booking quote. This is a workflow separation in the UI; I have not added login or role-based access control. The interface therefore has four views: Movies, Rewatch Plan, Booking, and Add Cinema. The movie view includes search and watched-status filters; the rewatch view refreshes progress after a watched toggle; the booking view shows either a bundle breakdown or why an exact match is unavailable. I kept the graph and optimization algorithms in the backend service code.
 
 I did not add React Router because this small app only needs simple view switching. `App.jsx` keeps the active view in React state, starting at Movies. Since the selected page is not stored in the URL or persistent storage, reloading the browser resets the app to the Movies page.
 
@@ -151,17 +196,7 @@ Example request bodies:
 
 The rewatch response includes the target movie, the ordered prerequisite movies, and a summary with `totalMovies`, `watchedMovies`, `remainingMovies`, and `remainingRuntimeMinutes`. A booking response includes `possible`, `groupSize`, `totalBundles`, and the quantity of each bundle size when a match exists.
 
-## Run locally
-
-I run the API and frontend in separate terminals. A MongoDB instance is required.
-
-1. In `server`, install the dependencies with `npm install`.
-2. Create `server/.env` and set `MONGODB_URI` to the MongoDB connection string. `PORT` is optional and defaults to `5000`; `CLIENT_URL` is optional and defaults to `http://localhost:5173`.
-3. Start the API from `server` with `npm run dev`.
-4. In `client`, install the dependencies with `npm install`.
-5. Set `VITE_API_BASE_URL=http://localhost:5000/api` in `client/.env` (or point it at the deployed API), then start Vite from `client` with `npm run dev`.
-
-The client project also provides `npm run build` and `npm run lint`. The repository has small manual algorithm examples in `server/src/testing/test-graph.js` and `server/src/testing/test-booking.js`; the root `npm test` script is only a placeholder and there is no configured automated test suite.
+The client project also provides `npm run build` and `npm run lint`. The repository has small manual algorithm examples in `server/src/testing/test-graph.js` and `server/src/testing/test-booking.js`; the root and server `npm test` scripts are placeholders, and there is no configured automated test suite.
 
 ## Validation rules
 
