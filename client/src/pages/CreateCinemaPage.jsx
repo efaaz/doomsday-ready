@@ -103,7 +103,7 @@ function CreateCinemaPage({ onViewChange }) {
     setCreatedCinema("");
     toast.clear();
 
-    const cinema = await createCinema(result.data);
+    const cinema = await createCinema(form);
     if (!cinema) return;
 
     setForm(initialForm);
